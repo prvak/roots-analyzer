@@ -109,7 +109,29 @@ class Cesta:
         return self.konec
 
     def vykresli(self, obrazek):
-        pygame.draw.lines(obrazek, self.barva, False, self.body, self.tloustka)
+        #pygame.draw.lines(obrazek, self.barva, False, self.body, self.tloustka)
+        for index in xrange(len(self.body) - 1):
+            self._kresliUsek(obrazek, index)
+
+    def vykresliPosledniUsek(self, obrazek):
+        #pygame.draw.line(obrazek, self.barva, self.body[-2], self.body[-1], self.tloustka)
+        self._kresliUsek(obrazek, len(self.body)-2)
+
+    def _kresliUsek(self, obrazek, index):
+        a = self.body[index]
+        b = self.body[index + 1]
+        dx = b[0] - a[0]
+        dy = b[1] - a[1]
+        lx = abs(dx)
+        ly = abs(dy)
+        l = max(lx, ly)
+        if l > 0:
+            for bod in [(int(a[0]+1.0*n*dx/l), int(a[1]+1.0*n*dy/l)) for n in xrange(l)]:
+                pygame.draw.circle(obrazek, self.barva, bod, self.tloustka/2, 0)
+        else:
+            # oba body maji stejne souradnice
+            pygame.draw.circle(obrazek, self.barva, a, self.tloustka/2, 0)
+            
 
 class Tlacitko:
     def __init__(self, nazev, barva, barva2, udalost, sTextem = True):
@@ -306,7 +328,6 @@ class Manazer:
 
     def posun(self, posunuti):
         self.posunuti = [sum(x) for x in zip(self.posunuti, posunuti)]
-        print self.posunuti
         self._prekresli()
 
     def kresli(self, bod, konec = False):
@@ -343,7 +364,7 @@ class Manazer:
             return # nedojde k zadnemu prekresleni
         cesta.pridej(bod2)
         # nakresli caru do zmeneneho obrazku
-        pygame.draw.line(self.zmeneny, cesta.barva, bod1, bod2, t)
+        cesta.vykresliPosledniUsek(self.zmeneny)
         # vyrizni dotceny obdelnik ze zmeneneho obrazku v originalni velikosti
         vyrez = self.zmeneny.subsurface(obdelnikVyrezu)
         # zvets nebo zmensi vyrez na aktualni priblizeni
