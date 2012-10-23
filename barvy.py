@@ -306,6 +306,7 @@ class Manazer:
 
     def posun(self, posunuti):
         self.posunuti = [sum(x) for x in zip(self.posunuti, posunuti)]
+        print self.posunuti
         self._prekresli()
 
     def kresli(self, bod, konec = False):
@@ -375,13 +376,11 @@ class Manazer:
         if not vyrez:
             vyrez = obdelnikOkna
         obdelnikObrazku = self.priblizeny.get_rect().move(self.posunuti[0], self.posunuti[1])
-        obdelnikVyrezu = obdelnikObrazku.clip(vyrez)
         # vyplnime celou obrazovku barvou pozadi
         pygame.draw.rect(okno, self.barvaPozadi, vyrez)
         
         # vykreslime obrazek na obrazovku
-        #okno.blit(self.priblizeny, obdelnikOkna, obdelnikVyrezu) # vlozime obrazek do okna
-        okno.blit(self.priblizeny, obdelnikVyrezu) # vlozime obrazek do okna
+        okno.blit(self.priblizeny, obdelnikObrazku) # vlozime obrazek do okna
         
         # vypiseme nazev souboru
         text = font.render(self.soubory.poziceSouboru()+": "+self.soubory.tentoSoubor(), True, pygame.Color(0x00000000))
@@ -405,8 +404,8 @@ def vytvorOkno():
     pygame.display.init()
     #pygame.mouse.set_visible(False)
     #okno = pygame.display.set_mode((800,600), pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE) # sice fullscreen, ale kresli jen doprostred
-    okno = pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE) # pravy fulscreen
-    #okno = pygame.display.set_mode((800,600), pygame.DOUBLEBUF|pygame.HWSURFACE) # okno o danych rozmerech
+    #okno = pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE) # pravy fulscreen
+    okno = pygame.display.set_mode((800,600), pygame.DOUBLEBUF|pygame.HWSURFACE) # okno o danych rozmerech
 
     # povoleni udalosti mysi a klavesnice
     # kdyz zmackneme tlacitko, pohneme mysi atp., tak se o tom program dozvi
