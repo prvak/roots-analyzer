@@ -219,6 +219,9 @@ class Menu:
             tlacitko = TlacitkoBarvy(nazev, int(barva+"00", 16), int(barva+"55", 16))
             self.barvy.append(tlacitko)
         self.barvy.append(TlacitkoBarvy("Bila", "0xffffff00", "0xffffff55"))
+        self.tloustky = []
+        self.tloustky.append(Tlacitko(u"Tlustá", 0xffffff00, 0xdddddd00, "tlusta"))
+        self.tloustky.append(Tlacitko(u"Tenká", 0xffffff00, 0xdddddd00, "tenka"))
 #        self.barvy = [
 #                TlacitkoBarvy("Modra", 0x4b60f900, 0x3648ca00),
 #                TlacitkoBarvy("Cervena", 0xe3042000, 0xac303f00),
@@ -233,13 +236,17 @@ class Menu:
 #            ] # tlacitka barev, vzdy je prave jedno z nich vybrane
         self.tlacitka = []
         self.tlacitka.extend(self.barvy)
+        self.tlacitka.extend(self.tloustky)
         self.tlacitka.append(Tlacitko(u"Zpět", 0xffffff00, 0xdddddd00, "zpet"))
         self.tlacitka.append(Tlacitko("+", 0xffffff00, 0xdddddd00, "+"))
         self.tlacitka.append(Tlacitko("-", 0xffffff00, 0xdddddd00, "-"))
         self.tlacitka.append(Tlacitko(u"Další", 0xffffff00, 0xdddddd00, "dalsi"))
         for t in self.barvy:
             t.seskup(self.barvy)
+        for t in self.tloustky:
+            t.seskup(self.tloustky)
         self.barvy[0].vybrane = True
+        self.tloustky[0].vybrane = True
         self.obdelnik = None # obdelnik, ve kterem je menu vykresleno
 
     def klik(self, bod):
@@ -277,6 +284,7 @@ class Manazer:
         self.menu = menu # menu, ktere bude vykresleno pres obrazek
         self.soubory = soubory # manazer souboru
         self.barva = menu.barvy[0].barva # vybrana barva
+        self.tlusta()
         self.priblizeni = 1 
         self.barvaPozadi = pygame.Color(0x12670b00)
     def nacti(self, predchozi = False):
@@ -307,6 +315,12 @@ class Manazer:
         else:
             print "No changes in file '%s'" % (soubor)
 
+    def tenka(self):
+        self.tloustka = 2
+    
+    def tlusta(self):
+        self.tloustka = 8
+    
     def zvets(self):
         self.priblizeni = self.priblizeni + 1
         if self.priblizeni > 8:
@@ -335,7 +349,7 @@ class Manazer:
         if not self.cesty or self.cesty[-1].ukoncena():
             # neexistuje zatim zadna cesta, nebo posledni cesta je jiz ukoncena
             # vytvor novou cestu s timto bodem
-            cesta = Cesta(bod2, self.barva, 8)
+            cesta = Cesta(bod2, self.barva, self.tloustka)
             self.cesty.append(cesta)
         else:
             # jinak vezmi posledni cestu
@@ -574,6 +588,10 @@ while(1):
     elif udalost.type == pygame.USEREVENT:
         if udalost.code == "barva":
             manazer.nastavBarvu(udalost.color)
+        elif udalost.code == "tenka":
+            manazer.tenka()
+        elif udalost.code == "tlusta":
+            manazer.tlusta()
         elif udalost.code == "zpet":
             manazer.zpet()
         elif udalost.code == "dalsi":
