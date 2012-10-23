@@ -335,7 +335,7 @@ class Manazer:
         if not self.cesty or self.cesty[-1].ukoncena():
             # neexistuje zatim zadna cesta, nebo posledni cesta je jiz ukoncena
             # vytvor novou cestu s timto bodem
-            cesta = Cesta(bod2, self.barva, 7)
+            cesta = Cesta(bod2, self.barva, 8)
             self.cesty.append(cesta)
         else:
             # jinak vezmi posledni cestu
@@ -425,8 +425,8 @@ def vytvorOkno():
     pygame.display.init()
     #pygame.mouse.set_visible(False)
     #okno = pygame.display.set_mode((800,600), pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE) # sice fullscreen, ale kresli jen doprostred
-    #okno = pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE) # pravy fulscreen
-    okno = pygame.display.set_mode((800,600), pygame.DOUBLEBUF|pygame.HWSURFACE) # okno o danych rozmerech
+    okno = pygame.display.set_mode((0,0), pygame.FULLSCREEN|pygame.DOUBLEBUF|pygame.HWSURFACE) # pravy fulscreen
+    #okno = pygame.display.set_mode((800,600), pygame.DOUBLEBUF|pygame.HWSURFACE) # okno o danych rozmerech
 
     # povoleni udalosti mysi a klavesnice
     # kdyz zmackneme tlacitko, pohneme mysi atp., tak se o tom program dozvi
