@@ -3,6 +3,7 @@ from collections import deque
 import colorsys # for rgb_to_hsv, rgb_to_yiq
 from PIL import Image, ImageColor
 import operator
+from collections import defaultdict
 
 class AnalyzerError (Exception):
     def __init__(self, text):
@@ -127,17 +128,11 @@ class Analyzer:
         self._coords = Coordinates(img.size)
         self._neigh4 = Neighbours(self._coords, False)
         self._neigh8 = Neighbours(self._coords, True)
-        self._colors = []
-        with open("barvy.cfg") as f:
-            f.readline() # first line contains headers
-            for line in f.readlines():
-                line = line.strip()
-                if not line:
-                    continue
-                (name, color, others) = line.split(";", 2)
-                color = ImageColor.getrgb("#"+color[2:]) # color must be in form '#rrggbb'
-                self._colors.append((name, color))
+        self._colors = None
     
+    def set_colors(self, colors):
+        self._colors = colors
+
     def filter_background(self, img, 
             color_threshold = 180, group_threshold = 5):
         # light colors will be marked as background
@@ -166,67 +161,90 @@ class Analyzer:
 
         return pixels, groups, indexes
 
-    def measure_skeleton(self, img, dpi, color_threshold = 128):
+    def _measure_colors(self, index, pixels, dpi, previous = None, direct = 0, diagonal = 0):
         """Measures total length of the skeleton in the image 'img'.
         
-        Returns length of the skeleton in milimeters and number of 
-        branches of the skeleton. If there is no skeleton
-        or more then one skeleton than None is returned."""
-        pixels = [0 if img.getpixel(c) < color_threshold else 1 
-                    for c in self._coords.coords()]
-        groups, indexes = self._groups_init(pixels, self._neigh8)
-        fg_indexes = filter(lambda i: pixels[i[0]] == 1, indexes)
-        if len(fg_indexes) == 0:
-            raise AnalyzerError("No skeleton found")
-        elif len(fg_indexes) > 1:
-            raise AnalyzerError("Too many skeletons (%d)." % (len(fg_indexes)))
-        fg = fg_indexes[0] # select first (and the only) skeleton
-
-        direct = 0 # number of directly connected pixels
-        diagonal = 0 # number of diagonally connected pixels
-        tails = 0 # number of tails of the skeleton
-        queue = deque([fg[0]]) # select first pixel of the skeleton
-        while len(queue) > 0:
+        Returns various statistics of the skeleton. Lengths are in milimeters. """
+        data = []
+        zaznam = defaultdict(int)
+        if direct + diagonal == 0:
+            # this is a begining of the root, mark the tail
+            branch_name = self._get_color_name(None)
+            zaznam[branch_name] += 1 # this works thanks to defaultdict 
+        while True:
             # get next index
-            index = queue.popleft()
-            if pixels[index] == 1:
-                # add selected neighbour to current group
-                pixels[index] = 2 # 0 == bg, 1 == fg, 2 == visited fg
-                indexes.append(index)
-                # get neighbours of selected index
-                all_neighbours = self._neigh8.neighs_as_indexes(index)
-                # filter out those neighbours that have already been visited
-                # or that are background
-                neighbours = filter(lambda n: pixels[n] == 1, all_neighbours)
-                # detect end of a tail
-                if (len(neighbours) == 0 or
-                   (len(neighbours) == 1 and direct + diagonal == 0)):
-                   # if there are no neighbours that haven't been visited
-                   # yet or if the first pixel has exactly one neighbour
-                   # then the end of the tail was encountered
-                   tails += 1
-                # count number of diagonal neighbours and number 
-                # of direct neighbours
-                direct_neighbours = self._neigh4.neighs_as_indexes(index)
-                d = filter(lambda n: n in direct_neighbours, neighbours)
-                direct += len(d)
-                diagonal += len(neighbours) - len(d)
-                # add remaining neighbours to the queue
-                queue.extend(neighbours) #mumumu
-
-        # compute length in milimeters
-        length = (math.sqrt(2)*diagonal + direct)*25.4/dpi # 1 inch = 25.4 mm
-        self._print("%.1f mm Direct: %d, Diagonal: %d, Branches: %d" 
-                % (length, direct, diagonal, tails-1)) # #branches == #tails-1
-        data = {"delka_korenoveho_systemu": "%0.2f" % (length), 
-                "vetveni": "%d" % (tails-2)}
+            neighbours = self._filter_neighbours8_by_condition(index, 
+                    lambda n: pixels[n] != 0 and n != previous)
+            l = len(neighbours)
+            if l == 0:
+                # end of a branch
+                color_name = self._get_color_name(pixels[index])
+                zaznam["barva"] = color_name
+                length = self._get_skeleton_length(direct, diagonal, dpi)
+                zaznam["delka"] = length
+                branch_name = self._get_color_name(None)
+                zaznam[branch_name] += 1 # this works thanks to defaultdict 
+                data.append(zaznam)
+                return data
+            elif l == 1:
+                # branch continues
+                n = neighbours[0]
+                if pixels[n] != pixels[index]:
+                    # color changed
+                    color_name = self._get_color_name(pixels[index])
+                    zaznam["barva"] = color_name
+                    length = self._get_skeleton_length(direct, diagonal, dpi)
+                    zaznam["delka"] = length
+                    branch_name = self._get_color_name(pixels[n])
+                    zaznam[branch_name] += 1 # this works thanks to defaultdict 
+                    d = self._is_direct_neighbour(index, n)
+                    data.extend(self._measure_colors(n, pixels, dpi, index, 1 if d else 0, 0 if d else 1))
+                    data.append(zaznam)
+                    return data
+                else:
+                    # color continues
+                    if self._is_direct_neighbour(index, neighbours[0]):
+                        direct += 1
+                    else:
+                        diagonal += 1
+                    previous = index
+                    index = n
+            elif l == 2:
+                # crossroad
+                c = pixels[index]
+                c1 = pixels[neighbours[0]]
+                c2 = pixels[neighbours[1]]
+                if c == c1 and c != c2:
+                    n1 = neighbours[1]
+                    n2 = neighbours[0]
+                elif c != c1 and c == c2:
+                    n1 = neighbours[0]
+                    n2 = neighbours[1]
+                elif c == c1 and c == c2:
+                    raise AnalyzerError("Both neighbours are of the same color.")
+                else: #c != c1 and c != c2:
+                    raise AnalyzerError("Both neighbours are of different colors.")
+                # call recursively on the branch
+                d = self._is_direct_neighbour(index, n1)
+                branch_name = self._get_color_name(pixels[n1])
+                zaznam[branch_name] += 1 # this works thanks to defaultdict 
+                data.extend(self._measure_colors(n1, pixels, dpi, index, 1 if d else 0, 0 if d else 1))
+                # continue with the same color
+                if self._is_direct_neighbour(index, n2):
+                    direct += 1
+                else:
+                    diagonal += 1
+                previous = index
+                index = n2
+            else:
+                raise AnalyzerError("There are %d branches, allowed maximum is 2" % (l))
         return data
-
-    def determine_colors(self, img, skel, color_threshold = 128):
+    
+    def measure_skeleton(self, img, skel, dpi):
         self._print("Determining colors in skeleton.")
         white = (255, 255, 255)
         colors = [record[1] for record in self._colors]
-        pixels = [0 if skel.getpixel(c) < color_threshold else 1 
+        pixels = [0 if skel.getpixel(c) < 128 else 1 
                     for c in self._coords.coords()]
         groups, indexes = self._groups_init(pixels, self._neigh8)
         fg_indexes = filter(lambda i: pixels[i[0]] == 1, indexes)
@@ -235,7 +253,9 @@ class Analyzer:
         elif len(fg_indexes) > 1:
             raise AnalyzerError("Too many skeletons (%d)." % (len(fg_indexes)))
         skel = fg_indexes[0] # select first (and the only) skeleton
-        start = min(self._find_tails(skel)) # highest tail is the root begining
+        tails = self._find_tails(skel)
+        tails.sort()
+        start = tails[0]
 
         # search the skeleton using depth first search
         # keep track of colors in last 2*w pixels, if colors in first w
@@ -314,14 +334,37 @@ class Analyzer:
 
             else:
                 raise AnalyzerError("There are %d branches leading from a crossroad." % (len(neighbours)))
-            
-        # TODO: sequences that are too short will be removed
 
-        # TODO: color that enters the intersection can only continue in one direction
-        data = {"vetveni2": "%d" % (len(crossroads))}
+
+        start = self._find_root_begining(tails, pixels)
+        data = self._measure_colors(start, pixels, dpi)
         pixels = [white if pixel == 0 else pixel for pixel in pixels]
         return pixels, data
+
+    def _find_root_begining(self, tails, pixels):
+        for n, c in self._colors:
+            if n == "modra":
+                blue = c
+            if n == "cervena":
+                red = c
         
+        # find the heighest blue tail
+        best = len(pixels)
+        for t in tails:
+            if pixels[t] == blue and t < best:
+                best = t
+        # if no blue tail exists, find highest red tail
+        if best < 0:
+            for t in tails:
+                if pixels[t] == blue and t < best:
+                    best = t
+        # if neither blue nor red tail exists, find the highest tail
+        if best < 0:
+            for t in tails:
+                if t < best:
+                    best = t
+        return best
+
     def _follow_root_by_color(self, current, previous, color, pixels, limit):
         length = 1
         while length < limit:
@@ -379,6 +422,26 @@ class Analyzer:
                 pixels[current] = original
                 return
         raise AnalyzerError("Branch of the root is too long.")
+   
+    def _get_skeleton_length(self, direct, diagonal, dpi):
+        length = (math.sqrt(2)*diagonal + direct)*25.4/dpi # 1 inch = 25.4 mm
+        return length
+       
+    def _is_direct_neighbour(self, index, neighbour):
+        direct_neighbours = self._neigh4.neighs_as_indexes(index)
+        return neighbour in direct_neighbours
+
+    def _get_color_name(self, color):
+        for c in enumerate(self._colors):
+            if c[1][1] == color:
+                return c[1][0]
+        return "bila"
+        #raise AnalyzerError("Unknown color (%d, %d, %d)" % (color))
+
+    def _get_branch_name(self, color1, color2):
+        name1 = self._get_color_name(color1)
+        name2 = self._get_color_name(color2)
+        return "%s_%s" % (name1, name2)
 
     def _filter_neighbours8(self, index, value, pixels):
         """Filter neighbours of pixel with index 'index' that have value

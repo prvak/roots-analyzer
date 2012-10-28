@@ -2,13 +2,12 @@
 import argparse
 import os
 
-from PIL import Image
-
+from PIL import Image, ImageColor
 from analyzer import Analyzer, AnalyzerError
 
 errors = 0
 
-def measure_skeleton_for_image(source, skeleton, target, dpi, verbose = True):
+def measure_skeleton_for_image(source, skeleton, target, dpi, colors, verbose = True):
     """Measure skeleton stored in a bitmap image in file 'source'.
     
     Image must be black and white. Background must be black, skeleton must
@@ -25,10 +24,9 @@ def measure_skeleton_for_image(source, skeleton, target, dpi, verbose = True):
         data = {}
         try:
             analyzer = Analyzer(img, verbose)
-            data = analyzer.measure_skeleton(skel, dpi)
-            pixels, colors = analyzer.determine_colors(img, skel)
+            analyzer.set_colors(colors)
+            pixels, data = analyzer.measure_skeleton(img, skel, dpi)
             analyzer.save_pixels(target, pixels, "RGB")
-            data.update(colors)
         except AnalyzerError as e:
             print "Error: %s: %s" % (skeleton, str(e))
             errors = errors + 1
@@ -38,7 +36,7 @@ def measure_skeleton_for_image(source, skeleton, target, dpi, verbose = True):
         errors = errors + 1
         return {}
 
-def measure_skeleton_for_directory(source, skeleton, target, dpi, verbose = False):
+def measure_skeleton_for_directory(source, skeleton, target, dpi, colors, verbose = False):
     """Measure skeletons stored in a bitmap images in directory 'source'.
     
     Images must be black and white. Background must be black, skeleton must
@@ -86,13 +84,27 @@ def measure_skeleton_for_directory(source, skeleton, target, dpi, verbose = Fals
                 and os.path.isfile(skeleton_path)):
             # encountered image file that has a coresponding skeleton file
             data = measure_skeleton_for_image(source_path, skeleton_path, 
-                    target_path, dpi, verbose)
+                    target_path, dpi, colors, verbose)
             name = os.path.split(source_path)[1] # remove folder name
             name = os.path.splitext(name)[0] # remove format extension
             name = os.path.splitext(name)[0] # remove skel extension
-            data.update({"jmeno": name})
-            measurements.append(data)
+            for d in data:
+                d["jmeno"] = name
+            measurements.extend(data)
     return measurements
+
+def load_colors():
+    colors = []
+    with open("barvy.cfg") as f:
+        f.readline() # first line contains headers
+        for line in f.readlines():
+            line = line.strip()
+            if not line:
+                continue
+            (name, color, others) = line.split(";", 2)
+            color = ImageColor.getrgb("#"+color[2:]) # color must be in form '#rrggbb'
+            colors.append((name, color))
+    return colors
 
 def save_skeleton_measurements(data, target):
     """Saves result of the measurement into the target file.
@@ -100,22 +112,35 @@ def save_skeleton_measurements(data, target):
     Format of the file is csv. Each element in the data will be saved
     into one line. Elements of the data will be separated by colons.
     The first line contains header."""
+    data.reverse()
     errors = 0 # number of errors
     with open(target, 'w') as f:
         # this specifies which columns will be written out and in which order
-        headers = [
+        leading_headers = [
                 "jmeno",
-                "delka_korenoveho_systemu", 
-                "vetveni",
-                "vetveni2",
-                "cosi"
+                "barva",
+                "delka"
                 ]
+        other_headers = [
+                "%s" % (c[0]) for c in colors
+                ]
+        other_headers.append("bila")
+        headers = leading_headers + other_headers
         f.write(";".join(headers)+"\n")
         #print data
         for row in data:
             records = []
             for column in headers:
-                record = row[column] if row.has_key(column) else "NA"
+                record = row[column] if row.has_key(column) else 0
+                if type(record) == int:
+                    record = "%d" % (record)
+                elif type(record) == float:
+                    record = "%0.4f" % (record)
+                elif type(record) == str:
+                    pass
+                else:
+                    print "Error: Unexpected type '%s' of value '%s'. Allowed are int, float and str." % (type(record), record)
+                    record = str(record)
                 records.append(record)
             f.write(";".join(records)+"\n")
 
@@ -137,11 +162,12 @@ if __name__=="__main__":
 
     # run the script
     print "Running..."
+    colors = load_colors()
     if os.path.isdir(images):
-        data = measure_skeleton_for_directory(images, skeletons, target, dpi)
+        data = measure_skeleton_for_directory(images, skeletons, target, dpi, colors)
         save_skeleton_measurements(data, stats)
     else:
-        data = [[source] + measure_skeleton_for_image(images, skeletons, target, dpi)]
+        data = measure_skeleton_for_image(images, skeletons, target, dpi, colors)
         save_skeleton_measurements(data, stats)
     if errors > 0:
         print "Warning: There were %d errors in skeleton examination." % (errors)
