@@ -4,7 +4,9 @@ import os
 
 from PIL import Image
 
-from analyzer import Analyzer
+from analyzer import Analyzer, AnalyzerError
+
+errors = 0
 
 def measure_skeleton_for_image(source, skeleton, target, dpi, verbose = True):
     """Measure skeleton stored in a bitmap image in file 'source'.
@@ -15,18 +17,25 @@ def measure_skeleton_for_image(source, skeleton, target, dpi, verbose = True):
     
     Returns list containing filename, length of the skeleton and number 
     of branches. Length is in milimeters."""
+    global errors
     print "%s -> %s" % (skeleton, target)
     img = Image.open(source)
     skel = Image.open(skeleton)
     if img.size == skel.size:
-        analyzer = Analyzer(img, verbose)
-        data = analyzer.measure_skeleton(skel, dpi)
-        pixels, colors = analyzer.determine_colors(img, skel)
-        analyzer.save_pixels(target, pixels, "RGB")
-        data.update(colors)
+        data = {}
+        try:
+            analyzer = Analyzer(img, verbose)
+            data = analyzer.measure_skeleton(skel, dpi)
+            pixels, colors = analyzer.determine_colors(img, skel)
+            analyzer.save_pixels(target, pixels, "RGB")
+            data.update(colors)
+        except AnalyzerError as e:
+            print "Error: %s: %s" % (skeleton, str(e))
+            errors = errors + 1
         return data
     else:
         print "Error: Images '%s' and '%s' do not have the same sizes!" % (source, skeleton)
+        errors = errors + 1
         return {}
 
 def measure_skeleton_for_directory(source, skeleton, target, dpi, verbose = False):
@@ -134,6 +143,8 @@ if __name__=="__main__":
     else:
         data = [[source] + measure_skeleton_for_image(images, skeletons, target, dpi)]
         save_skeleton_measurements(data, stats)
+    if errors > 0:
+        print "Warning: There were %d errors in skeleton examination." % (errors)
     print "Finished."
 
 

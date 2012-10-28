@@ -2,6 +2,11 @@ import math
 from collections import deque
 import colorsys # for rgb_to_hsv, rgb_to_yiq
 from PIL import Image, ImageColor
+import operator
+
+class AnalyzerError (Exception):
+    def __init__(self, text):
+        Exception.__init__(self, text)
 
 class Coordinates:
     """List of coordinates for each pixel.
@@ -172,11 +177,9 @@ class Analyzer:
         groups, indexes = self._groups_init(pixels, self._neigh8)
         fg_indexes = filter(lambda i: pixels[i[0]] == 1, indexes)
         if len(fg_indexes) == 0:
-            print "Error: No skeleton found!"
-            return {}
+            raise AnalyzerError("No skeleton found")
         elif len(fg_indexes) > 1:
-            print "Error: Too many skeletons (%d)." % (len(fg_indexes))
-            return {}
+            raise AnalyzerError("Too many skeletons (%d)." % (len(fg_indexes)))
         fg = fg_indexes[0] # select first (and the only) skeleton
 
         direct = 0 # number of directly connected pixels
@@ -228,11 +231,9 @@ class Analyzer:
         groups, indexes = self._groups_init(pixels, self._neigh8)
         fg_indexes = filter(lambda i: pixels[i[0]] == 1, indexes)
         if len(fg_indexes) == 0:
-            print "Error: No skeleton found!"
-            return None, {}
+            raise AnalyzerError("No skeleton found")
         elif len(fg_indexes) > 1:
-            print "Error: Too many skeletons (%d)." % (len(fg_indexes))
-            return None, {}
+            raise AnalyzerError("Too many skeletons (%d)." % (len(fg_indexes)))
         skel = fg_indexes[0] # select first (and the only) skeleton
         start = min(self._find_tails(skel)) # highest tail is the root begining
 
@@ -241,7 +242,6 @@ class Analyzer:
         # pixels are different from colors of second group of w pixels than
         # the second group will be assigned new color type
         colcounter = 1 # starting color
-        whitecounter = 0 # number of undefined colors
         col = colcounter # curretnt color
         w = 1 # window will have size 2*w pixels
         
@@ -278,8 +278,7 @@ class Analyzer:
                 if col != c:
                     col = c if c in colors else white
                     if col == white: # encountered undefined color
-                        print "Error: Undefined color:", c, "at", self._coords.index_to_coord(index)
-                        whitecounter = whitecounter + 1
+                        raise AnalyzerError("Error: Undefined color:", c, "at", self._coords.index_to_coord(index))
                     colcounter = colcounter + 1
                 stack.append(index)
                 pixels[index] = col
@@ -294,7 +293,28 @@ class Analyzer:
                 # current pixel has no unvisited neighbours and the stack is empty
                 # it means that all pixels have been examined
                 break
-        
+
+        # on each crossroad, determine which color starts here and which continues
+        for c in crossroads:
+            branches = []
+            neighbours = self._filter_neighbours8_by_condition(c, 
+                    lambda n: pixels[n] != 0)
+            for n in neighbours:
+                length, next_color = self._follow_root_by_color(n, c, pixels[n], pixels, len(pixels)/100)
+                branches.append((pixels[n], length, next_color))
+            if len(neighbours) == 3:
+                colors = map(lambda b: b[0], branches)
+                if colors[0] == colors[1] == colors[2]:
+                    # all branches have the same color, discard the shortest of them
+                    lengths = map(lambda b: b[1], branches)
+                    index, value = min(enumerate(lengths), key=operator.itemgetter(1))
+                    if not value:
+                        raise AnalyzerError("Branch is too short." % (len(neighbours)))
+                    self._recolor_branch(neighbours[index], c, branches[index][2], pixels)
+
+            else:
+                raise AnalyzerError("There are %d branches leading from a crossroad." % (len(neighbours)))
+            
         # TODO: sequences that are too short will be removed
 
         # TODO: color that enters the intersection can only continue in one direction
@@ -302,11 +322,78 @@ class Analyzer:
         pixels = [white if pixel == 0 else pixel for pixel in pixels]
         return pixels, data
         
+    def _follow_root_by_color(self, current, previous, color, pixels, limit):
+        length = 1
+        while length < limit:
+            # filter out previous pixel and pixels with different color
+            neighbours = self._filter_neighbours8_by_color(current, 
+                    color, pixels, previous)
+            if len(neighbours) == 0:
+                # end of the root
+                neighs = self._filter_neighbours8_by_condition(current, 
+                        lambda n: pixels[n] != 0 and pixels[n] != color)
+                if len(neighs) == 0:
+                    return length, None
+                elif len(neighs) == 1:
+                    return length, pixels[neighs[0]]
+                else:
+                    raise AnalyzerError("There are %d neighbours, expected 0 or 1 neighbours." % (len(neighs)))
+            elif len(neighbours) == 1:
+                # root continues
+                length = length + 1
+                previous = current
+                current = neighbours[0]
+            elif len(neighbours) == 2:
+                # crossroad, recursively compute all branches and select the longest one
+                best = (0, None)
+                for n in neighbours:
+                    r = self._follow_root_by_color(n, current, color, pixels, limit-length)
+                    if r[0] > best[0]:
+                        best = r
+                length = length + best[0]
+                next_color = best[1]
+                return length, next_color
+            else:
+                # crossroad with 4 branches
+                raise AnalyzerError("Crossroad with %d branches." % (len(neighbours)+1))
+        raise AnalyzerError("Cycle in the root.")
+
+    def _recolor_branch(self, current, previous, color, pixels):
+        limit = len(pixels)/100
+        while limit > 0:
+            original = pixels[current]
+            # filter out previous pixel and pixels with different color
+            neighbours = self._filter_neighbours8_by_condition(current, 
+                    lambda n: pixels[n] == pixels[current] and n != previous)
+            pixels[current] = color
+            if len(neighbours) == 0:
+                # end of the root
+                return
+            elif len(neighbours) == 1:
+                # root continues
+                previous = current
+                current = neighbours[0]
+                limit = limit - 1
+            else:
+                # crossroad, recolor the pixel with the orginal color
+                pixels[current] = original
+                return
+        raise AnalyzerError("Branch of the root is too long.")
+
     def _filter_neighbours8(self, index, value, pixels):
         """Filter neighbours of pixel with index 'index' that have value
         'value'. Returns list of indexes of neighbouring pixels."""
+        return self._filter_neighbours8_by_condition(index,
+            lambda n: pixels[n] == value)
+    
+    def _filter_neighbours8_by_color(self, index, color, pixels, previous = None):
+        return self._filter_neighbours8_by_condition(index, 
+                    lambda n: pixels[n] == color and n != previous)
+
+    
+    def _filter_neighbours8_by_condition(self, index, condition):
         all_neighbours = self._neigh8.neighs_as_indexes(index)
-        neighbours = filter(lambda n: pixels[n] == value, all_neighbours)
+        neighbours = filter(condition, all_neighbours)
         return neighbours
 
     def _find_tails(self, indexes):
