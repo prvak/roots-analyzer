@@ -3,10 +3,11 @@ import argparse
 import os
 
 from PIL import Image
+from analyzer import Analyzer, AnalyzerError, load_colors
 
-from analyzer import Analyzer
+errors = 0
 
-def clear_background_for_image(source, target, verbose = True):
+def clear_background_for_image(source, target, colors, verbose = True):
     """Clear background of source image.
     
     Result is a black and white image in png format. White color 
@@ -17,24 +18,34 @@ def clear_background_for_image(source, target, verbose = True):
     # compute mean color
     total = (gray.size[0] * gray.size[1])
     mean = sum((col * n for col, n in gray.getcolors())) / total
-    analyzer = Analyzer(img, verbose)
-    pixels, groups, indexes = analyzer.filter_background(gray, 
-            color_threshold = mean - 30) # 
-    analyzer.save_pixels(target, pixels)
+    try:
+        analyzer = Analyzer(img, colors, verbose)
+        pixels, groups, indexes = analyzer.filter_background(gray, 
+                color_threshold = mean - 30) # 
+        analyzer.save_pixels(target, pixels)
+    except AnalyzerError as e:
+        print "Error: %s: %s" % (source, str(e))
+        errors = errors + 1
 
-def clear_background_for_image2(source, target, verbose = True):
+
+def clear_background_for_image2(source, target, colors, verbose = True):
     """Clear background of source image.
     
     Result is a black and white image in png format. White color 
     coresponds to foreground pixels, black color to background pixels."""
+    global errors
     print "%s -> %s" % (source, target)
     img = Image.open(source)
     # compute mean color
-    analyzer = Analyzer(img, verbose)
-    pixels, groups, indexes = analyzer.filter_background2(img, 20) 
-    analyzer.save_pixels(target, pixels)
+    try:
+        analyzer = Analyzer(img, colors, verbose)
+        pixels, groups, indexes = analyzer.filter_background2(img, 20) 
+        analyzer.save_pixels(target, pixels)
+    except AnalyzerError as e:
+        print "Error: %s: %s" % (source, str(e))
+        errors = errors + 1
 
-def clear_background_for_directory(source, target, version, verbose = False):
+def clear_background_for_directory(source, target, version, colors, verbose = False):
     """Clear background of all images in the source directory.
     
     Result is a black and white image in png format. White color 
@@ -77,10 +88,10 @@ def clear_background_for_directory(source, target, version, verbose = False):
                 # encountered image file
                 if version == 1:
                     clear_background_for_image(source_path, 
-                            target_dir + target_fn, verbose)
+                            target_dir + target_fn, colors, verbose)
                 elif version == 2:
                     clear_background_for_image2(source_path, 
-                            target_dir + target_fn, verbose)
+                            target_dir + target_fn, colors, verbose)
                 else:
                     print "Unknown version '%d'." % (version)
 
@@ -97,13 +108,16 @@ if __name__=="__main__":
 
     # run the script
     print "Running..."
+    colors = load_colors()
     if os.path.isdir(source):
         # source is a directory, clear background of all images in that
         # directory and save each result to separate file in target directory
-        clear_background_for_directory(source, target, 2)
+        clear_background_for_directory(source, target, 2, colors)
     else:
         # source is a file, clear background of that image
-        clear_background_for_image2(source, target)
+        clear_background_for_image2(source, target, colors)
+    if errors > 0:
+        print "Warning: There were %d errors in skeleton examination." % (errors)
     print "Finished."
 
 

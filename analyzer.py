@@ -123,16 +123,13 @@ class Neighbours:
             #return self._neigh_c[pixel]
 
 class Analyzer:
-    def __init__(self, img, verbose = False):
+    def __init__(self, img, colors = None, verbose = False):
         self._verbose = verbose
         self._coords = Coordinates(img.size)
         self._neigh4 = Neighbours(self._coords, False)
         self._neigh8 = Neighbours(self._coords, True)
-        self._colors = None
-    
-    def set_colors(self, colors):
         self._colors = colors
-
+    
     def filter_background(self, img, 
             color_threshold = 180, group_threshold = 5):
         # light colors will be marked as background
@@ -569,3 +566,16 @@ class Analyzer:
     
     def _print(self, text):
         if self._verbose: print text
+
+def load_colors():
+    colors = []
+    with open("barvy.cfg") as f:
+        f.readline() # first line contains headers
+        for line in f.readlines():
+            line = line.strip()
+            if not line:
+                continue
+            (name, color, others) = line.split(";", 2)
+            color = ImageColor.getrgb("#"+color[2:]) # color must be in form '#rrggbb'
+            colors.append((name, color))
+    return colors

@@ -3,7 +3,7 @@ import argparse
 import os
 
 from PIL import Image, ImageColor
-from analyzer import Analyzer, AnalyzerError
+from analyzer import Analyzer, AnalyzerError, load_colors
 
 errors = 0
 
@@ -23,8 +23,7 @@ def measure_skeleton_for_image(source, skeleton, target, dpi, colors, verbose = 
     if img.size == skel.size:
         data = {}
         try:
-            analyzer = Analyzer(img, verbose)
-            analyzer.set_colors(colors)
+            analyzer = Analyzer(img, colors, verbose)
             pixels, data = analyzer.measure_skeleton(img, skel, dpi)
             analyzer.save_pixels(target, pixels, "RGB")
         except AnalyzerError as e:
@@ -92,19 +91,6 @@ def measure_skeleton_for_directory(source, skeleton, target, dpi, colors, verbos
                 d["jmeno"] = name
             measurements.extend(data)
     return measurements
-
-def load_colors():
-    colors = []
-    with open("barvy.cfg") as f:
-        f.readline() # first line contains headers
-        for line in f.readlines():
-            line = line.strip()
-            if not line:
-                continue
-            (name, color, others) = line.split(";", 2)
-            color = ImageColor.getrgb("#"+color[2:]) # color must be in form '#rrggbb'
-            colors.append((name, color))
-    return colors
 
 def save_skeleton_measurements(data, target):
     """Saves result of the measurement into the target file.
