@@ -211,7 +211,6 @@ class Analyzer:
         if not record:
             record = defaultdict(int)
             if previous:
-                print "branch %s, %s" % (self._get_color_name(pixels[previous]), self._coords.index_to_coord(previous))
                 record[self._get_color_name(pixels[previous])] += 1
             else:
                 record[self._get_color_name(None)] += 1
@@ -229,7 +228,6 @@ class Analyzer:
                 else:
                     diagonal += 1
                 if pixels[n] != pixels[previous] and n != indexes[0]: # ignore color change immediately after crossroad
-                    print "change %s, %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n))
                     # color changed
                     record["barva"] = self._get_color_name(pixels[previous])
                     record["delka"] = self._get_skeleton_length(direct, diagonal, dpi)
@@ -276,7 +274,6 @@ class Analyzer:
                     data.extend(self._measure_colors(different[0][0], c, pixels, dpi, None, 0, 0))
             else:
                 # end of branch without crossroad
-                print "tail %s, %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n))
                 record["barva"] = self._get_color_name(pixels[previous])
                 record["delka"] = self._get_skeleton_length(direct, diagonal, dpi)
                 record[self._get_color_name(None)] += 1 
