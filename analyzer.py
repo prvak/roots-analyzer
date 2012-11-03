@@ -176,8 +176,8 @@ class Analyzer:
     def filter_background(self, img, 
             color_threshold = 180, group_threshold = 5):
         # light colors will be marked as background
-        pixels = [0 if img.getpixel(c) > color_threshold else 1 
-                    for c in self._coords.coords()]
+        img = img.getdata()
+        pixels = [0 if c > color_threshold else 1 for c in img]
         # assign each pixel a group number, group is a continuous section
         # of background or foreground pixels
         groups, indexes = self._groups_init(pixels, self._neigh4)
@@ -190,8 +190,8 @@ class Analyzer:
     def filter_background2(self, img, group_threshold = 5):
         # light colors will be marked as background
         colors = [record[1] for record in self._colors]
-        pixels = [1 if img.getpixel(c) in colors else 0
-                    for c in self._coords.coords()]
+        img = img.getdata()
+        pixels = [1 if c in colors else 0 for c in img]
         # assign each pixel a group number, group is a continuous section
         # of background or foreground pixels
         groups, indexes = self._groups_init(pixels, self._neigh4)
@@ -284,11 +284,13 @@ class Analyzer:
         return data                    
     
     def measure_skeleton(self, img, skel, dpi):
+        img = img.getdata()
+        skel = skel.getdata()
         self._print("Determining colors in skeleton.")
         white = (255, 255, 255)
         colors = [record[1] for record in self._colors]
-        pixels = [0 if skel.getpixel(c) < 128 else 1 
-                    for c in self._coords.coords()]
+        pixels = [0 if c < 128 else 1 
+                    for c in skel]
         groups, indexes = self._groups_init(pixels, self._neigh8)
         fg_indexes = filter(lambda i: pixels[i[0]] == 1, indexes)
         if len(fg_indexes) == 0:
@@ -297,8 +299,7 @@ class Analyzer:
             raise AnalyzerError("Too many skeletons (%d)." % (len(fg_indexes)))
         skel = fg_indexes[0] # select first (and the only) skeleton
         tails = self._find_tails(skel)
-        coloredpixels = [white if pixels[i] == 0 
-                else img.getpixel(self._coords.index_to_coord(i)) 
+        coloredpixels = [white if pixels[i] == 0 else img[i]
                 for i in self._coords.indexes()]
         start = self._find_root_begining(tails, coloredpixels)
 
@@ -315,6 +316,8 @@ class Analyzer:
             # get next index
             branch = queue.popleft()
             index = branch.get_last_index()
+            if not coloredpixels[index] in colors:
+                raise AnalyzerError("Unknown color %s at %s" % (coloredpixels[index], self._coords.index_to_coord(index)))
             if pixels[index] == 2: # already selected
                 neighbours = self._filter_neighbours8_by_color(index, 1, pixels)
                 l = len(neighbours)
