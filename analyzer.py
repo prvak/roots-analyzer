@@ -418,6 +418,8 @@ class Analyzer:
 
     def _recolor_branch(self, branch, crossroad, color, newColor, pixels):
         for n in branch.get_indexes(crossroad):
+            if not newColor:
+                raise AnalyzerError("Recoloring with an invalid color.")
             if pixels[n] == color:
                 # branch continues with the same color
                 pixels[n] = newColor
@@ -566,6 +568,7 @@ class Analyzer:
             for i in self._coords.indexes():
                 col = pixels[i]
                 xy = self._coords.index_to_coord(i)
+                print xy, col
                 img.putpixel(xy, col)
         img.save(filename)
     
