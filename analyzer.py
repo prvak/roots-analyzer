@@ -149,6 +149,7 @@ class Branch:
 
     def end(self, crossroad):
         self._end = crossroad
+        self._indexes.pop()
 
     def append(self, index):
         self._indexes.append(index)
@@ -156,6 +157,12 @@ class Branch:
     def get_crossroad(self, crossroad = None):
         # return the crossroad opposite to given crossroad
         return self._end if crossroad == self._start else self._start
+
+    def get_first_index(self, crossroad = None):
+        if crossroad == self._start:
+            return self._indexes[0] if self._indexes else self._end.get_index()
+        else:
+            return self._indexes[-1] if self._indexes else self._start.get_index()
 
     def get_last_index(self):
         return self._indexes[-1]
@@ -247,7 +254,7 @@ class Analyzer:
                 same = [] # branches that have the same color as the crossroad
                 different = [] # branches that have different color than the crossroad
                 for b in c.get_branches(branch):
-                    col = pixels[b.get_indexes(c).next()]
+                    col = pixels[b.get_first_index(c)]
                     if col == pixels[n]:
                         same.append((b, col))
                     else:
@@ -258,16 +265,16 @@ class Analyzer:
                     raise AnalyzerError("Four way crossroad at %s." % (self._coords.index_to_coord(n)))
                 if len(same) == 0:
                     # no branch with the same color found
-                    raise AnalyzerError("No branch continues with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                    raise AnalyzerError("No branch continues with color '%s' at %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n)))
                 if len(same) > 1:
                     # too many branches with the same color found
-                    raise AnalyzerError("Too many branches continues with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                    raise AnalyzerError("Too many branches continues with color '%s' at %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n)))
                 if len(different) == 0:
                     # we have arrived from wrong direction
-                    raise AnalyzerError("All branches continue with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                    raise AnalyzerError("All branches continue with color '%s' at %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n)))
                 if len(different) > 1:
                     # we have arrived from wrong direction
-                    raise AnalyzerError("Too many branches with different color than %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                    raise AnalyzerError("Too many branches with different color than '%s' at %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n)))
                 else:
                     record[self._get_color_name(different[0][1])] += 1 
                     data.extend(self._measure_colors(same[0][0], c, pixels, dpi, record, direct, diagonal))
@@ -341,6 +348,7 @@ class Analyzer:
 
         # on each crossroad, determine which color starts here and which continues
         pixels = coloredpixels
+    
         for c in crossroads:
             n = c.get_index()
             nc = pixels[n]
