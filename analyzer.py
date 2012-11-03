@@ -122,6 +122,49 @@ class Neighbours:
             return self._generate(pixel, self._eight)
             #return self._neigh_c[pixel]
 
+class Crossroad:
+    def __init__(self, index, branch):
+        self._index = index
+        self._branches = [branch]
+        branch.end(self)
+
+    def append(self, branch):
+        self._branches.append(branch)
+
+    def get_index(self):
+        return self._index
+
+    def get_branches(self, branch = None):
+        # get other branches than branch
+        return filter(lambda b: b != branch, self._branches)
+    
+    def get_branch(self, index):
+        return self._branches[index]
+
+class Branch:
+    def __init__(self, crossroad):
+        self._start = crossroad
+        self._end = None
+        self._indexes = []
+
+    def end(self, crossroad):
+        self._end = crossroad
+
+    def append(self, index):
+        self._indexes.append(index)
+
+    def get_crossroad(self, crossroad = None):
+        # return the crossroad opposite to given crossroad
+        return self._end if crossroad == self._start else self._start
+
+    def get_last_index(self):
+        return self._indexes[-1]
+
+    def get_indexes(self, crossroad = None):
+        # get indexes starting from given crossroad
+        return iter(self._indexes) if crossroad == self._start else reversed(self._indexes)
+
+
 class Analyzer:
     def __init__(self, img, colors = None, verbose = False):
         self._verbose = verbose
@@ -158,84 +201,90 @@ class Analyzer:
 
         return pixels, groups, indexes
 
-    def _measure_colors(self, index, pixels, dpi, previous = None, direct = 0, diagonal = 0):
+    def _measure_colors(self, branch, crossroad, pixels, dpi, record, direct, diagonal):
         """Measures total length of the skeleton in the image 'img'.
         
         Returns various statistics of the skeleton. Lengths are in milimeters. """
         data = []
-        zaznam = defaultdict(int)
-        if direct + diagonal == 0:
-            # this is a begining of the root, mark the tail
-            branch_name = self._get_color_name(None)
-            zaznam[branch_name] += 1 # this works thanks to defaultdict 
-        while True:
-            # get next index
-            neighbours = self._filter_neighbours8_by_condition(index, 
-                    lambda n: pixels[n] != 0 and n != previous)
-            l = len(neighbours)
-            if l == 0:
-                # end of a branch
-                color_name = self._get_color_name(pixels[index])
-                zaznam["barva"] = color_name
-                length = self._get_skeleton_length(direct, diagonal, dpi)
-                zaznam["delka"] = length
-                branch_name = self._get_color_name(None)
-                zaznam[branch_name] += 1 # this works thanks to defaultdict 
-                data.append(zaznam)
-                return data
-            elif l == 1:
-                # branch continues
-                n = neighbours[0]
-                if pixels[n] != pixels[index]:
-                    # color changed
-                    color_name = self._get_color_name(pixels[index])
-                    zaznam["barva"] = color_name
-                    length = self._get_skeleton_length(direct, diagonal, dpi)
-                    zaznam["delka"] = length
-                    branch_name = self._get_color_name(pixels[n])
-                    zaznam[branch_name] += 1 # this works thanks to defaultdict 
-                    d = self._is_direct_neighbour(index, n)
-                    data.extend(self._measure_colors(n, pixels, dpi, index, 1 if d else 0, 0 if d else 1))
-                    data.append(zaznam)
-                    return data
-                else:
-                    # color continues
-                    if self._is_direct_neighbour(index, neighbours[0]):
-                        direct += 1
-                    else:
-                        diagonal += 1
-                    previous = index
-                    index = n
-            elif l == 2:
-                # crossroad
-                c = pixels[index]
-                c1 = pixels[neighbours[0]]
-                c2 = pixels[neighbours[1]]
-                if c == c1 and c != c2:
-                    n1 = neighbours[1]
-                    n2 = neighbours[0]
-                elif c != c1 and c == c2:
-                    n1 = neighbours[0]
-                    n2 = neighbours[1]
-                elif c == c1 and c == c2:
-                    raise AnalyzerError("Both neighbours are of the same color.")
-                else: #c != c1 and c != c2:
-                    raise AnalyzerError("Both neighbours are of different colors.")
-                # call recursively on the branch
-                d = self._is_direct_neighbour(index, n1)
-                branch_name = self._get_color_name(pixels[n1])
-                zaznam[branch_name] += 1 # this works thanks to defaultdict 
-                data.extend(self._measure_colors(n1, pixels, dpi, index, 1 if d else 0, 0 if d else 1))
-                # continue with the same color
-                if self._is_direct_neighbour(index, n2):
+
+        previous = crossroad.get_index() if crossroad else None
+        if not record:
+            record = defaultdict(int)
+            if previous:
+                print "branch %s, %s" % (self._get_color_name(pixels[previous]), self._coords.index_to_coord(previous))
+                record[self._get_color_name(pixels[previous])] += 1
+            else:
+                record[self._get_color_name(None)] += 1
+        
+            
+        indexes = []
+        indexes.extend(branch.get_indexes(crossroad))
+        if branch.get_crossroad(crossroad):
+            indexes.append(branch.get_crossroad(crossroad).get_index())
+
+        for n in indexes:
+            if previous:
+                if self._is_direct_neighbour(n, previous):
                     direct += 1
                 else:
                     diagonal += 1
-                previous = index
-                index = n2
+                if pixels[n] != pixels[previous] and n != indexes[0]: # ignore color change immediately after crossroad
+                    print "change %s, %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n))
+                    # color changed
+                    record["barva"] = self._get_color_name(pixels[previous])
+                    record["delka"] = self._get_skeleton_length(direct, diagonal, dpi)
+                    record[self._get_color_name(pixels[n])] += 1 
+                    data.append(record)
+                    record = defaultdict(int)
+                    record[self._get_color_name(pixels[previous])] += 1 
+                    direct = 0
+                    diagonal = 0
+            previous = n
+        else:
+            # branch over
+            c = branch.get_crossroad(crossroad)
+            if c: 
+                # continue with the branch that has same color as the crossroad
+                # there should be exactly one
+                same = [] # branches that have the same color as the crossroad
+                different = [] # branches that have different color than the crossroad
+                for b in c.get_branches(branch):
+                    col = pixels[b.get_indexes(c).next()]
+                    if col == pixels[n]:
+                        same.append((b, col))
+                    else:
+                        different.append((b, col))
+                
+                if len(same) + len(different) > 2:
+                    # only three way crossroads are allowed
+                    raise AnalyzerError("Four way crossroad at %s." % (self._coords.index_to_coord(n)))
+                if len(same) == 0:
+                    # no branch with the same color found
+                    raise AnalyzerError("No branch continues with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                elif len(same) > 1:
+                    # too many branches with the same color found
+                    raise AnalyzerError("Too many branches continues with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                elif len(different) == 0:
+                    # we have arrived from wrong direction
+                    raise AnalyzerError("All branches continue with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                elif len(different) > 1:
+                    # we have arrived from wrong direction
+                    raise AnalyzerError("Too many branches with different color than %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
+                else:
+                    record[self._get_color_name(different[0][1])] += 1 
+                    data.extend(self._measure_colors(same[0][0], c, pixels, dpi, record, direct, diagonal))
+                    data.extend(self._measure_colors(different[0][0], c, pixels, dpi, None, 0, 0))
             else:
-                raise AnalyzerError("There are %d branches, allowed maximum is 2" % (l))
-        return data
+                # end of branch without crossroad
+                print "tail %s, %s." % (self._get_color_name(pixels[n]), self._coords.index_to_coord(n))
+                record["barva"] = self._get_color_name(pixels[previous])
+                record["delka"] = self._get_skeleton_length(direct, diagonal, dpi)
+                record[self._get_color_name(None)] += 1 
+                data.append(record)
+                record = defaultdict(int)
+                direct = 0
+                diagonal = 0
+        return data                    
     
     def measure_skeleton(self, img, skel, dpi):
         self._print("Determining colors in skeleton.")
@@ -251,91 +300,70 @@ class Analyzer:
             raise AnalyzerError("Too many skeletons (%d)." % (len(fg_indexes)))
         skel = fg_indexes[0] # select first (and the only) skeleton
         tails = self._find_tails(skel)
-        tails.sort()
-        start = tails[0]
+        coloredpixels = [white if pixels[i] == 0 
+                else img.getpixel(self._coords.index_to_coord(i)) 
+                for i in self._coords.indexes()]
+        start = self._find_root_begining(tails, coloredpixels)
 
-        # search the skeleton using depth first search
-        # keep track of colors in last 2*w pixels, if colors in first w
-        # pixels are different from colors of second group of w pixels than
-        # the second group will be assigned new color type
-        colcounter = 1 # starting color
-        col = colcounter # curretnt color
-        w = 1 # window will have size 2*w pixels
-        
-        # colors of the skeleton
-        rgb = [img.getpixel(self._coords.index_to_coord(i)) 
-                 for i in skel]
-        #hsv = [colorsys.rgb_to_hsv(c[0], c[1], c[2]) for c in rgb]
-        #yiq = [colorsys.rgb_to_yiq(c[0], c[1], c[2]) for c in rgb]
-
-        # remember crossroads encountered during the DFS algorithm
+        # find crossroads and branches
         crossroads = []
-
-        # start the DFS with the first pixel of the root, 
-        # assign it the first color
+        branches = []
         index = start
-        stack = [index]
-        c = img.getpixel(self._coords.index_to_coord(index))
-        col = c if c in colors else white
-        pixels[index] = col
-        while True:
-            # find all non-visited neighbours, these have value 1
-            neighbours = self._filter_neighbours8(index, 1, pixels)
-           
-            # check whether this is a crossroad and store its index if so
-            # one crossroad may be inserted multiple times, duplicates
-            # will be filtered out later
-            if len(neighbours) > 1:
-                crossroads.append(index)
-            if len(neighbours) > 0:
-                # add first non-visited neighbour to the stack and color it
-                # with current color
-                index = neighbours[0]
-                c = img.getpixel(self._coords.index_to_coord(index))
-                if col != c:
-                    col = c if c in colors else white
-                    if col == white: # encountered undefined color
-                        raise AnalyzerError("Error: Undefined color:", c, "at", self._coords.index_to_coord(index))
-                    colcounter = colcounter + 1
-                stack.append(index)
-                pixels[index] = col
-
-                # compute color difference from previous pixels
-                # TODO:
-            elif stack:
-                # no more neighbours, extract the last pixel from the stack
-                index = stack.pop() # get next pixel to examine
-                col = pixels[index] # find its color
-            else:
-                # current pixel has no unvisited neighbours and the stack is empty
-                # it means that all pixels have been examined
-                break
+        pixels[index] = 2
+        branch = Branch(None)
+        branch.append(index)
+        branches.append(branch)
+        queue = deque([branch])
+        while len(queue) > 0:
+            # get next index
+            branch = queue.popleft()
+            index = branch.get_last_index()
+            if pixels[index] == 2: # already selected
+                neighbours = self._filter_neighbours8_by_color(index, 1, pixels)
+                l = len(neighbours)
+                if l == 0:
+                    pass
+                elif l == 1:
+                    n = neighbours[0]
+                    pixels[n] = 2
+                    branch.append(n)
+                    queue.append(branch)
+                else:
+                    crossroad = Crossroad(index, branch)
+                    for n in neighbours:
+                        pixels[n] = 2
+                        branch = Branch(crossroad)
+                        branch.append(n)
+                        branches.append(branch)
+                        crossroad.append(branch)
+                        queue.append(branch)
+                    crossroads.append(crossroad)
 
         # on each crossroad, determine which color starts here and which continues
+        pixels = coloredpixels
         for c in crossroads:
-            branches = []
-            neighbours = self._filter_neighbours8_by_condition(c, 
-                    lambda n: pixels[n] != 0)
-            for n in neighbours:
-                length, next_color = self._follow_root_by_color(n, c, pixels[n], pixels, len(pixels)/100)
-                branches.append((pixels[n], length, next_color))
-            if len(neighbours) == 3:
-                colors = map(lambda b: b[0], branches)
+            n = c.get_index()
+            nc = pixels[n]
+            colordata = []
+            for b in c.get_branches():
+                length, next_color = self._follow_root_by_color(b, c, nc, pixels)
+                colordata.append((b, nc, length, next_color))
+            if len(colordata) == 3:
+                colors = map(lambda b: b[1], colordata)
                 if colors[0] == colors[1] == colors[2]:
-                    # all branches have the same color, discard the shortest of them
-                    lengths = map(lambda b: b[1], branches)
+                    # all branches have the same color, recolor the shortest of them
+                    lengths = map(lambda b: b[2], colordata)
                     index, value = min(enumerate(lengths), key=operator.itemgetter(1))
                     if not value:
                         raise AnalyzerError("Branch is too short." % (len(neighbours)))
-                    self._recolor_branch(neighbours[index], c, branches[index][2], pixels)
+                    self._recolor_branch(colordata[index][0], c, nc, colordata[index][3], pixels)
 
             else:
                 raise AnalyzerError("There are %d branches leading from a crossroad." % (len(neighbours)))
 
-
-        start = self._find_root_begining(tails, pixels)
-        data = self._measure_colors(start, pixels, dpi)
-        pixels = [white if pixel == 0 else pixel for pixel in pixels]
+        # this is a begining of the root, mark the tail
+        data = self._measure_colors(branches[0], None, pixels, dpi, None, 0, 0)
+        data.reverse()
         return pixels, data
 
     def _find_root_begining(self, tails, pixels):
@@ -362,63 +390,43 @@ class Analyzer:
                     best = t
         return best
 
-    def _follow_root_by_color(self, current, previous, color, pixels, limit):
-        length = 1
-        while length < limit:
-            # filter out previous pixel and pixels with different color
-            neighbours = self._filter_neighbours8_by_color(current, 
-                    color, pixels, previous)
-            if len(neighbours) == 0:
-                # end of the root
-                neighs = self._filter_neighbours8_by_condition(current, 
-                        lambda n: pixels[n] != 0 and pixels[n] != color)
-                if len(neighs) == 0:
-                    return length, None
-                elif len(neighs) == 1:
-                    return length, pixels[neighs[0]]
-                else:
-                    raise AnalyzerError("There are %d neighbours, expected 0 or 1 neighbours." % (len(neighs)))
-            elif len(neighbours) == 1:
-                # root continues
-                length = length + 1
-                previous = current
-                current = neighbours[0]
-            elif len(neighbours) == 2:
-                # crossroad, recursively compute all branches and select the longest one
-                best = (0, None)
-                for n in neighbours:
-                    r = self._follow_root_by_color(n, current, color, pixels, limit-length)
-                    if r[0] > best[0]:
-                        best = r
-                length = length + best[0]
-                next_color = best[1]
-                return length, next_color
+    def _follow_root_by_color(self, branch, crossroad, color, pixels):
+        # follow pixels of the root on given branch starting from given crossroad
+        length = 0
+        for n in branch.get_indexes(crossroad):
+            if pixels[n] == color:
+                # branch continues with the same color
+                length += 1
             else:
-                # crossroad with 4 branches
-                raise AnalyzerError("Crossroad with %d branches." % (len(neighbours)+1))
-        raise AnalyzerError("Cycle in the root.")
+                # branch continues but with a different color
+                return (length, pixels[n])
+        else:
+            # end of a section, continue recursively from next crossroad
+            nextCrossroad = branch.get_crossroad(crossroad)
+            if nextCrossroad:
+                n = nextCrossroad.get_index()
+                if pixels[n] != color:
+                    # crossroad has different color
+                    return (length, pixels[n])
+                longest = (-1, None)
+                for b in nextCrossroad.get_branches(branch):
+                    (l, c) = self._follow_root_by_color(b, nextCrossroad, color, pixels)
+                    if longest[0] < l:
+                        longest = (l, c)
+                # return length of the longest section
+                return (length + longest[0], longest[1])
+            else:
+                # end of the root
+                return (length, None)
 
-    def _recolor_branch(self, current, previous, color, pixels):
-        limit = len(pixels)/100
-        while limit > 0:
-            original = pixels[current]
-            # filter out previous pixel and pixels with different color
-            neighbours = self._filter_neighbours8_by_condition(current, 
-                    lambda n: pixels[n] == pixels[current] and n != previous)
-            pixels[current] = color
-            if len(neighbours) == 0:
-                # end of the root
-                return
-            elif len(neighbours) == 1:
-                # root continues
-                previous = current
-                current = neighbours[0]
-                limit = limit - 1
+    def _recolor_branch(self, branch, crossroad, color, newColor, pixels):
+        for n in branch.get_indexes(crossroad):
+            if pixels[n] == color:
+                # branch continues with the same color
+                pixels[n] = newColor
             else:
-                # crossroad, recolor the pixel with the orginal color
-                pixels[current] = original
-                return
-        raise AnalyzerError("Branch of the root is too long.")
+                # branch continues but with a different color
+                break
    
     def _get_skeleton_length(self, direct, diagonal, dpi):
         length = (math.sqrt(2)*diagonal + direct)*25.4/dpi # 1 inch = 25.4 mm
