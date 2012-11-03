@@ -259,13 +259,13 @@ class Analyzer:
                 if len(same) == 0:
                     # no branch with the same color found
                     raise AnalyzerError("No branch continues with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
-                elif len(same) > 1:
+                if len(same) > 1:
                     # too many branches with the same color found
                     raise AnalyzerError("Too many branches continues with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
-                elif len(different) == 0:
+                if len(different) == 0:
                     # we have arrived from wrong direction
                     raise AnalyzerError("All branches continue with color %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
-                elif len(different) > 1:
+                if len(different) > 1:
                     # we have arrived from wrong direction
                     raise AnalyzerError("Too many branches with different color than %s at %s." % (pixels[n], self._coords.index_to_coord(n)))
                 else:
