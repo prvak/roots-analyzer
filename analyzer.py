@@ -575,10 +575,7 @@ class Analyzer:
                 img.putpixel(xy, col)
         elif version == "RGB": # RGB picture
             img = Image.new("RGB", self._coords.size())
-            for i in self._coords.indexes():
-                col = pixels[i]
-                xy = self._coords.index_to_coord(i)
-                img.putpixel(xy, col)
+            img.putdata(pixels)
         img.save(filename)
     
     def _print(self, text):
