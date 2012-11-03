@@ -89,7 +89,7 @@ def measure_skeleton_for_directory(source, skeleton, target, dpi, colors, verbos
             name = os.path.splitext(name)[0] # remove skel extension
             for d in data:
                 d["jmeno"] = name
-            measurements.extend(data)
+            measurements = data + measurements # files will be ordered alphabetically in the csv
     return measurements
 
 def save_skeleton_measurements(data, target):
