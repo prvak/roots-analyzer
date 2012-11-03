@@ -568,7 +568,6 @@ class Analyzer:
             for i in self._coords.indexes():
                 col = pixels[i]
                 xy = self._coords.index_to_coord(i)
-                print xy, col
                 img.putpixel(xy, col)
         img.save(filename)
     
