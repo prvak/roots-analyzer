@@ -21,7 +21,7 @@ def measure_skeleton_for_image(source, skeleton, target, dpi, colors, verbose = 
     img = Image.open(source)
     skel = Image.open(skeleton)
     if img.size == skel.size:
-        data = {}
+        data = []
         try:
             analyzer = Analyzer(img, colors, verbose)
             pixels, data = analyzer.measure_skeleton(img, skel, dpi)
