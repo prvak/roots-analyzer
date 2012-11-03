@@ -351,10 +351,11 @@ class Analyzer:
                     # all branches have the same color, recolor the shortest of them
                     lengths = map(lambda b: b[2], colordata)
                     index, value = min(enumerate(lengths), key=operator.itemgetter(1))
-                    if not value:
-                        raise AnalyzerError("Branch is too short." % (len(neighbours)))
-                    self._recolor_branch(colordata[index][0], c, nc, colordata[index][3], pixels)
-
+                    print colordata
+                    print index, value
+                    if value:
+                        # recolor only branches with at least one pixel
+                        self._recolor_branch(colordata[index][0], c, nc, colordata[index][3], pixels)
             else:
                 raise AnalyzerError("There are %d branches leading from a crossroad." % (len(neighbours)))
 
