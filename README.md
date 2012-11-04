@@ -65,6 +65,8 @@ analyzuj.bash
 Skript, který spustí postupně `analyzuj-pozadi.py`, `kostra.ijm` 
 a `analuzj-kostru.py`. Spouští se příkazem:
   `bash analyzuj.bash slozka zkratka`
+nebo:
+  `bash analyzuj.bash slozka zkratka cislo`
 Složka `slozka` musí mít několik podsložek, které všechny začínají řetězcem
 `zkratka`. Tyto složky jsou:
  - prekreslene: Zde musí být obrázky kořenů.
@@ -72,5 +74,7 @@ Složka `slozka` musí mít několik podsložek, které všechny začínají ře
  - kostry: Zde budou vygenerovány černobílé obrázky koster.
  - barevnekostry: Zde budou vygenerovány barevné obrázky koster a csv soubor
      s výsledky.
- 
+Parametr `cislo` je volitelný. Pokud není uveden, jsou spuštěny všechny tři 
+skripty. Pokud je uveden, musí to být číslo 1, 2 nebo 3 a bude spuštěn pouze
+první, druhý nebo třetí skript.
 
