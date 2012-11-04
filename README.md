@@ -42,6 +42,7 @@ Ve složce `slozka1` musí být černobílé obrázky kořenů s koncovkami
 `.root.png`. Všechny tyto obrázky budou analyzovány a uloženy do složky
 `slozka2` s koncovkami `.skel.png`. 
 
+
 analyzuj-kostru.py
 ------------------
 
@@ -50,8 +51,26 @@ Slouží k výpočtu různých parametrů kostry. Kostra musí být zadaná ve f
 musí mít koncovku `.skel.png`. 
 Spouští se příkazem:
   `python analyzuj-kostru.py slozka1 slozka2 slozka3 soubor.csv`
-Kostry ze složky `slozka2` budou analyzovány. Ve složce `slozka1` jsou originální
-obrázky, ze kterých byly kostry vypočteny. Ty slouží k analýze barev. 
-Do složky `slozka3` budou uloženy obarvené kostry. Do souboru `soubor` 
-budou uloženy vypočtené statistiky ve formátu csv. Pokud 
-tento soubor již existuje, bude přepsán.
+
+Ve složce `slozka1` jsou originální obrázky, ze kterých byly kostry 
+vypočteny. Ty slouží k analýze barev. Ve složce `slozka2` jsou černobílé
+kostry, které budou analyzovány. Do složky `slozka3` budou uloženy 
+obarvené kostry. Do souboru `soubor` budou uloženy vypočtené statistiky 
+ve formátu csv. Pokud již tento soubor již existuje, bude přepsán.
+
+
+analyzuj.bash
+-------------
+
+Skript, který spustí postupně `analyzuj-pozadi.py`, `kostra.ijm` 
+a `analuzj-kostru.py`. Spouští se příkazem:
+  `bash analyzuj.bash slozka zkratka`
+Složka `slozka` musí mít několik podsložek, které všechny začínají řetězcem
+`zkratka`. Tyto složky jsou:
+ - prekreslene: Zde musí být obrázky kořenů.
+ - cernobile: Zde budou vygenerovány černobílé obrázky kořenů.
+ - kostry: Zde budou vygenerovány černobílé obrázky koster.
+ - barevnekostry: Zde budou vygenerovány barevné obrázky koster a csv soubor
+     s výsledky.
+ 
+
