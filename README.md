@@ -31,6 +31,17 @@ do složky `slozka2`. Obě složky mohou být stejné. Obrázky budou uloženy
 s koncovkou `.root.png`.
 
 
+kostra.ijm
+----------
+
+Toto je makro do programu fiji. Slouží k získání kostry z černobílého
+obrázku. Spouští se příkazem:
+  `fiji -batch kostra.ijm slozka1:slozka2`
+Pozor, jména složek jsou od sebe odděleny dvojtečkou.
+Ve složce `slozka1` musí být černobílé obrázky kořenů s koncovkami
+`.root.png`. Všechny tyto obrázky budou analyzovány a uloženy do složky
+`slozka2` s koncovkami `.skel.png`. 
+
 analyzuj-kostru.py
 ------------------
 

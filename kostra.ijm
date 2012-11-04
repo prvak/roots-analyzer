@@ -21,8 +21,12 @@ function listFiles(sourceDir, targetDir) {
 macro "BatchSkeletonize" {
      	print("Running...");
 	setBatchMode(true);
-	SourceDir=getDirectory("Choose a source directory");
-	TargetDir=getDirectory("Choose a target directory");
+    Directories=getArgument()
+    Directories=split(Directories, ":")
+	SourceDir=Directories[0]
+	TargetDir=Directories[1]
+    //SourceDir=getDirectory("Choose a source directory");
+	//TargetDir=getDirectory("Choose a target directory");
 	listFiles(SourceDir, TargetDir);
 	setBatchMode(false);
      	print("Finished.");
