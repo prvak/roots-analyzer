@@ -1,6 +1,6 @@
 #!/bin/bash
 if [ $# -lt 2 ]; then
-  echo "Missing arguments:"
+  echo "Error: Missing arguments:"
   echo "usage: analyzuj.bash SLOZKA ZKRATKA [1|2|3]"
   exit 1
 fi
@@ -24,15 +24,15 @@ C3="python analyzuj-kostru.py $BMP $SKEL $COLS $COLS${ZKRATKA}barevnekostry.csv"
 if [ $PRIKAZ ] ; then
 	# if the third argument was provided, run only specific script
 	case "$PRIKAZ" in
-		1) echo $C1 ;;
-		2) echo $C2 ;;
-		3) echo $C3	;;
-	    *) echo Third argument must be one of numbers 1, 2 or 3.;;
+		1) $C1 ;;
+		2) $C2 ;;
+		3) $C3 ;;
+	    *) echo Error: Third argument must be one of numbers 1, 2 or 3.; exit 1;;
 	esac
 else
 	# if the third argument was not provided run all scripts
-	echo $C1
-	echo $C2
-	echo $C3
+	$C1
+	$C2
+	$C3
 fi
 
