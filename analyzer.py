@@ -386,15 +386,17 @@ class Analyzer:
             if pixels[t] == blue and t < best:
                 best = t
         # if no blue tail exists, find highest red tail
-        if best < 0:
+        if best == len(pixels):
             for t in tails:
                 if pixels[t] == blue and t < best:
                     best = t
         # if neither blue nor red tail exists, find the highest tail
-        if best < 0:
+        if best == len(pixels):
             for t in tails:
                 if t < best:
                     best = t
+        if best == len(pixels):
+            raise AnalyzerError("No root begining found.")
         return best
 
     def _follow_root_by_color(self, branch, crossroad, color, pixels):
