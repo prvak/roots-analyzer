@@ -431,7 +431,7 @@ class Analyzer:
     def _recolor_branch(self, branch, crossroad, color, newColor, pixels):
         for n in branch.get_indexes(crossroad):
             if not newColor:
-                raise AnalyzerError("Recoloring with an invalid color.")
+                raise AnalyzerError("Recoloring with an invalid color at %s." % (self._coords.index_to_coord(n)))
             if pixels[n] == color:
                 # branch continues with the same color
                 pixels[n] = newColor
