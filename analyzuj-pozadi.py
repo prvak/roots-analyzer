@@ -34,6 +34,11 @@ def clear_background_for_image2(source, target, colors, verbose = True):
     Result is a black and white image in png format. White color 
     coresponds to foreground pixels, black color to background pixels."""
     global errors
+    sourceTime = os.path.getmtime(source)
+    targetTime = os.path.getmtime(target) if os.path.exists(target) else 0
+    if sourceTime <= targetTime:
+        print "%s is up to date" % (source)
+        return 
     print "%s -> %s" % (source, target)
     img = Image.open(source)
     # compute mean color
