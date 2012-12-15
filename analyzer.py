@@ -366,7 +366,7 @@ class Analyzer:
                         # recolor only branches with at least one pixel
                         self._recolor_branch(colordata[index][0], c, nc, colordata[index][3], pixels)
             else:
-                raise AnalyzerError("There are %d branches leading from a crossroad." % (len(neighbours)))
+                raise AnalyzerError("There are %d branches leading from a crossroad at %s." % (len(neighbours), str(self._coords.index_to_coord(index))))
 
         # this is a begining of the root, mark the tail
         data = self._measure_colors(branches[0], None, pixels, dpi, None, 0, 0)
