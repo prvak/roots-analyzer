@@ -11,46 +11,46 @@ Program postupně zobrazí všechny obrázky ve složce `slozka` a naklikané bo
 uloží do souboru `slozka.csv`. Pokud tento soubor neexistuje, tak ho vyrobí.
 
 
-barvy.py
+colors.py
 --------
 
 Slouží k obtažení kořenů jednolitými barvami, aby pak kořeny mohly být 
 lépe zpracovány ostatními programy.
 Spouští se příkazem:
-  `python barvy.py slozka`
+  `python colors.py slozka`
 
 
-analyzuj-pozadi.py
+analyze-background.py
 ------------------
 
 Slouží k převedení obrázku na černobílý. Pozadí je černé, kořen bílý.
 Spouští se příkazem:
-  `python analyzuj-pozadi.py slozka1 slozka2`
+  `python analyze-background.py slozka1 slozka2`
 Obrázky ze slozky `slozka1` budou převedeny na černobílé a budou uloženy
 do složky `slozka2`. Obě složky mohou být stejné. Obrázky budou uloženy
 s koncovkou `.root.png`.
 
 
-kostra.ijm
+skeleton.ijm
 ----------
 
 Toto je makro do programu fiji. Slouží k získání kostry z černobílého
 obrázku. Spouští se příkazem:
-  `fiji -batch kostra.ijm slozka1:slozka2`
+  `fiji -batch skeleton.ijm slozka1:slozka2`
 Pozor, jména složek jsou od sebe odděleny dvojtečkou.
 Ve složce `slozka1` musí být černobílé obrázky kořenů s koncovkami
 `.root.png`. Všechny tyto obrázky budou analyzovány a uloženy do složky
 `slozka2` s koncovkami `.skel.png`. 
 
 
-analyzuj-kostru.py
+analyze-skeleton.py
 ------------------
 
 Slouží k výpočtu různých parametrů kostry. Kostra musí být zadaná ve formě
 černobílého obrázku, kde pozadí je černé a kostra je bílá. Obrázky kostry
 musí mít koncovku `.skel.png`. 
 Spouští se příkazem:
-  `python analyzuj-kostru.py slozka1 slozka2 slozka3 soubor.csv`
+  `python analyze-skeleton.py slozka1 slozka2 slozka3 soubor.csv`
 
 Ve složce `slozka1` jsou originální obrázky, ze kterých byly kostry 
 vypočteny. Ty slouží k analýze barev. Ve složce `slozka2` jsou černobílé
@@ -59,14 +59,14 @@ obarvené kostry. Do souboru `soubor` budou uloženy vypočtené statistiky
 ve formátu csv. Pokud již tento soubor již existuje, bude přepsán.
 
 
-analyzuj.bash
+analyze.bash
 -------------
 
-Skript, který spustí postupně `analyzuj-pozadi.py`, `kostra.ijm` 
-a `analuzj-kostru.py`. Spouští se příkazem:
-  `bash analyzuj.bash slozka zkratka`
+Skript, který spustí postupně `analyze-background.py`, `skeleton.ijm` 
+a `analyze-skeleton.py`. Spouští se příkazem:
+  `bash analyze.bash slozka zkratka`
 nebo:
-  `bash analyzuj.bash slozka zkratka cislo`
+  `bash analyze.bash slozka zkratka cislo`
 Složka `slozka` musí mít několik podsložek, které všechny začínají řetězcem
 `zkratka`. Tyto složky jsou:
  - prekreslene: Zde musí být obrázky kořenů.

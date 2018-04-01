@@ -585,7 +585,7 @@ class Analyzer:
 
 def load_colors():
     colors = []
-    with open("barvy.cfg") as f:
+    with open("colors.cfg") as f:
         f.readline() # first line contains headers
         for line in f.readlines():
             line = line.strip()

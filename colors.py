@@ -206,7 +206,7 @@ class TlacitkoBarvy(Tlacitko):
 
 class Menu:
     def __init__(self):
-        with open("barvy.cfg") as f:
+        with open("colors.cfg") as f:
             f.readline() # first line contains headers, ignore it
             lines = f.readlines()
         
