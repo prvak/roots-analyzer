@@ -1,29 +1,29 @@
 #!/bin/bash
 if [ $# -lt 2 ]; then
   echo "Error: Missing arguments:"
-  echo "usage: analyze.bash SLOZKA ZKRATKA [1|2|3]"
+  echo "usage: analyze.sh DIRECTORY SHORTCUT [1|2|3]"
   exit 1
 fi
 
 # command line arguments
-SLOZKA=$1
-ZKRATKA=$2
-PRIKAZ=$3
+DIRECTORY=$1
+SHORTCUT=$2
+COMMAND=$3
 
 # folders
-BMP=$SLOZKA/${ZKRATKA}prekreslene/
-ROOT=$SLOZKA/${ZKRATKA}cernobile/
-SKEL=$SLOZKA/${ZKRATKA}kostry/
-COLS=$SLOZKA/${ZKRATKA}barevnekostry/
+BMP=${DIRECTORY}/${SHORTCUT}colored-roots/
+ROOT=${DIRECTORY}/${SHORTCUT}white-roots/
+SKEL=${DIRECTORY}/${SHORTCUT}skeletons/
+COLS=${DIRECTORY}/${SHORTCUT}colored-skeletons/
 
 # commands
 C1="python analyze-background.py $BMP $ROOT"
 C2="fiji -batch skeleton.ijm $ROOT:$SKEL"
-C3="python analyze-skeleton.py $BMP $SKEL $COLS $COLS${ZKRATKA}barevnekostry.csv"
+C3="python analyze-skeleton.py $BMP $SKEL $COLS $COLS${SHORTCUT}barevnekostry.csv"
 
-if [ $PRIKAZ ] ; then
+if [ $COMMAND ] ; then
 	# if the third argument was provided, run only specific script
-	case "$PRIKAZ" in
+	case "$COMMAND" in
 		1) $C1 ;;
 		2) $C2 ;;
 		3) $C3 ;;
