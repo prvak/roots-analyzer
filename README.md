@@ -1,80 +1,113 @@
-Návod k použití
-===============
+Requirements
+============
 
-body.py
--------
+- [`python`](https://www.python.org/)
+- [`pygame`](https://www.pygame.org/) (needed only for `points.py` and `colors.py`)
+- [`fiji`](https://fiji.sc/) (needed only for `skeleton.imj`)
 
-Slouží k naklikání okrajových bodů kořene.
-Spuští se příkazem: 
-  `python body.py slozka`
-Program postupně zobrazí všechny obrázky ve složce `slozka` a naklikané body 
-uloží do souboru `slozka.csv`. Pokud tento soubor neexistuje, tak ho vyrobí.
+
+Usage
+=====
+
+points.py
+---------
+
+Tool for choosing edge points of the root.
+
+Launch with command:
+
+  `python points.py DIRECTORY`
+
+where `DIRECTORY` is a directory containing images with roots.
+Root images will be displayed one by one and user will have to manually select edge points.
+Selected points will be saved in a file called `DIRECTORY.csv`. If the file already exists
+its content will be loaded. If it does not exist it will be created.
 
 
 colors.py
---------
+---------
 
-Slouží k obtažení kořenů jednolitými barvami, aby pak kořeny mohly být 
-lépe zpracovány ostatními programy.
-Spouští se příkazem:
-  `python colors.py slozka`
+Tool for redrawing roots with solid colors so that it is easier to analyze them.
+
+Launch with command:
+
+  `python colors.py DIRECTORY`
 
 
 analyze-background.py
-------------------
+---------------------
 
-Slouží k převedení obrázku na černobílý. Pozadí je černé, kořen bílý.
-Spouští se příkazem:
-  `python analyze-background.py slozka1 slozka2`
-Obrázky ze slozky `slozka1` budou převedeny na černobílé a budou uloženy
-do složky `slozka2`. Obě složky mohou být stejné. Obrázky budou uloženy
-s koncovkou `.root.png`.
+Script for transfering colorized root images to black and white images where root is white and
+background is black.
+
+Launch with command:
+
+  `python analyze-background.py COLORIZED_ROOTS_DIR BLACK_AND_WHITE_DIR`
+
+Images from directory `COLORIZED_ROOTS_DIR` will be transformed to black and white versions and saved
+in directory `BLACK_AND_WHITE_DIR` with extension `.root.png`.
 
 
 skeleton.ijm
-----------
+------------
 
-Toto je makro do programu fiji. Slouží k získání kostry z černobílého
-obrázku. Spouští se příkazem:
-  `fiji -batch skeleton.ijm slozka1:slozka2`
-Pozor, jména složek jsou od sebe odděleny dvojtečkou.
-Ve složce `slozka1` musí být černobílé obrázky kořenů s koncovkami
-`.root.png`. Všechny tyto obrázky budou analyzovány a uloženy do složky
-`slozka2` s koncovkami `.skel.png`. 
+This is a macro for [`fiji`](https://fiji.sc/)  program. It computes a root skeleton from a black
+and white image of a root.
+
+Launch with command:
+
+  `fiji -batch skeleton.ijm BLACK_AND_WHITE_DIR:SKELETON_DIR`
+
+Please notice that the directory names are separated by a colon `:`.
+
+The macro expect the directory `BLACK_AND_WHITE_DIR` to contain black and white images of roots
+with extensions `.root.png`. It ignores all other files. The root in the image is expected to
+be white, the background is expected to be black. Computed skeletons will be saved into
+directory `SKELETON_DIR` with extensions `.skel.png`.
 
 
 analyze-skeleton.py
-------------------
+-------------------
 
-Slouží k výpočtu různých parametrů kostry. Kostra musí být zadaná ve formě
-černobílého obrázku, kde pozadí je černé a kostra je bílá. Obrázky kostry
-musí mít koncovku `.skel.png`. 
-Spouští se příkazem:
-  `python analyze-skeleton.py slozka1 slozka2 slozka3 soubor.csv`
+Script for computing various parameters of root skeletons.
 
-Ve složce `slozka1` jsou originální obrázky, ze kterých byly kostry 
-vypočteny. Ty slouží k analýze barev. Ve složce `slozka2` jsou černobílé
-kostry, které budou analyzovány. Do složky `slozka3` budou uloženy 
-obarvené kostry. Do souboru `soubor` budou uloženy vypočtené statistiky 
-ve formátu csv. Pokud již tento soubor již existuje, bude přepsán.
+Launch with command:
+
+  `python analyze-skeleton.py COLORIZED_ROOTS_DIR SKELETON_DIR COLORIZED_SKELETONS_DIR results.csv`
+
+The `COLORIZED_ROOTS_DIR` directory should contain original colorized roots, the same that were
+used in the `analyze-background.py` script. These images are used to produce colorized version
+of skeleton.
+
+The `SKELETON_DIR` should contain images of skeletons. Skeleton must be in a form of a black
+and white image where the skeleton in the image is white and one pixel thick and the background
+is black. Images with skeletons are expected to have extension `.skel.png`.
+
+Computed parameters will be stored in `results.csv`. If the file already exists it will be
+overwritten. Colorized versions of skeletons will be stored in `COLORIZED_SKELETON_DIR`.
 
 
-analyze.bash
--------------
+analyze.sh
+----------
 
-Skript, který spustí postupně `analyze-background.py`, `skeleton.ijm` 
-a `analyze-skeleton.py`. Spouští se příkazem:
-  `bash analyze.bash slozka zkratka`
-nebo:
-  `bash analyze.bash slozka zkratka cislo`
-Složka `slozka` musí mít několik podsložek, které všechny začínají řetězcem
-`zkratka`. Tyto složky jsou:
- - prekreslene: Zde musí být obrázky kořenů.
- - cernobile: Zde budou vygenerovány černobílé obrázky kořenů.
- - kostry: Zde budou vygenerovány černobílé obrázky koster.
- - barevnekostry: Zde budou vygenerovány barevné obrázky koster a csv soubor
+Skript that launches `analyze-background.py`, `skeleton.ijm` and `analyze-skeleton.py`
+one after another.
+
+Launch with command:
+  `bash analyze.sh DIRECTORY PREFIX`
+or:
+  `bash analyze.sh COLORIZED_ROOTS PREFIX COMMAND_NUMBER`
+
+Directory `PREFIX` is expected to have several subdirectories, all starting with prefix
+`PREFIX`.
+:
+ - colored-roots: Zde musí být obrázky kořenů.
+ - white-roots: Zde budou vygenerovány černobílé obrázky kořenů.
+ - skeletons: Zde budou vygenerovány černobílé obrázky koster.
+ - colored-skeletons: Zde budou vygenerovány barevné obrázky koster a csv soubor
      s výsledky.
-Parametr `cislo` je volitelný. Pokud není uveden, jsou spuštěny všechny tři 
-skripty. Pokud je uveden, musí to být číslo 1, 2 nebo 3 a bude spuštěn pouze
-první, druhý nebo třetí skript.
+
+Parameter `COMMAND_NUMBER` is optional. It must be a number 1, 2 or 3. If present the script will
+run only the selected command (1 - `analyze-background.py`, 2 - `skeleton.ijm`,
+3 - `analyze-skeleton.py`).
 
