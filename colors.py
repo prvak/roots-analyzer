@@ -430,7 +430,7 @@ if fileList.isEnd():
     exit()
 
 window = createWindow()
-font = pygame.font.Font("DejaVuSans-Bold.ttf", 15)
+font = pygame.font.Font("font.ttf", 15)
 menu = Menu()
 manager = Manager(menu, window, fileList)
 
